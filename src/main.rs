@@ -1,5 +1,5 @@
-use std::fs;
 use std::path::Path;
+use std::{fs, path::PathBuf};
 
 use color_eyre::eyre::{OptionExt, Result};
 use gray_matter::{engine::YAML, Matter};
@@ -31,8 +31,18 @@ enum ZettelType {
 fn main() -> Result<()> {
     color_eyre::install()?;
 
-    let note = read_note("/nix/persist/active-externalism/data/website.md")?;
-    dbg!(note);
+    let workdir = "/nix/persist/active-externalism/data";
+
+    // flat because my vault is flat, at least for now
+    let notes: Vec<Note> = fs::read_dir(workdir)?
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| !path.is_dir())
+        .map(read_note)
+        .filter(|result| result.is_ok()) // not all files are notes
+        .flatten()
+        .collect();
+
+    dbg!(notes);
 
     Ok(())
 }
