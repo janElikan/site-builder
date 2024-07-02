@@ -28,6 +28,20 @@ enum ZettelType {
     Source,
 }
 
+#[derive(Debug)]
+enum Block {
+    Text(String),
+    Link(String),
+    Code(CodeBlock),
+}
+
+#[derive(Debug)]
+struct CodeBlock {
+    language: Option<String>,
+    body: String,
+    inline: bool,
+}
+
 fn main() -> Result<()> {
     color_eyre::install()?;
 
@@ -68,4 +82,18 @@ fn read_note<P: AsRef<Path>>(path: P) -> Result<Note> {
             .deserialize()?,
         body: file.content,
     })
+}
+struct Fragment {
+    idx_start: usize,
+    idx_end: usize,
+}
+
+fn slice_text(data: &str, delimiter_in: &str, delimiter_out: &str) -> Vec<Fragment> {
+    let start = text.match_indices("[[").map(|(idx, _)| idx + 2);
+    let end = text.match_indices("]]").map(|(idx, _)| idx);
+
+    start
+        .zip(end)
+        .map(|(idx_start, idx_end)| Fragment { idx_start, idx_end })
+        .collect()
 }
