@@ -7,4 +7,5 @@ edition = "2021"
 chrono = { version = "0.4.38", features = ["serde"] }
 color-eyre = "0.6.3"
 gray_matter = "0.2.8"
+regex = "1.10.5"
 serde = { version = "1.0.203", features = ["derive"] }
