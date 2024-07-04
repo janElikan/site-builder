@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::path::Path;
 use std::{fs, path::PathBuf};
 
@@ -13,7 +14,7 @@ struct Note {
     body: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct NoteMetadata {
     source: Option<String>,
     scope: String,
@@ -22,7 +23,7 @@ struct NoteMetadata {
     modified: String, // for now
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "kebab-case")]
 enum ZettelType {
     Main,
@@ -35,7 +36,7 @@ fn main() -> Result<()> {
     let workdir = "/nix/persist/active-externalism/data";
 
     // flat because my vault is flat, at least for now
-    let notes: Vec<Note> = fs::read_dir(workdir)?
+    let notes: Vec<_> = fs::read_dir(workdir)?
         .map(|entry| entry.unwrap().path())
         .filter(|path| !path.is_dir())
         .map(read_note)
@@ -43,9 +44,40 @@ fn main() -> Result<()> {
         .flatten()
         .collect();
 
-    dbg!(notes
+    let source_notes: Vec<_> = notes
         .iter()
-        .find(|note| note.name == "website-parser-test.md"));
+        .filter(|note| note.meta.r#type == ZettelType::Source)
+        .map(|note| {
+            let linked_notes = note
+                .body
+                .lines()
+                .filter(|line| line.starts_with("- "))
+                .map(extract_link)
+                .map(|link| notes.iter().find(|note| note.name == link))
+                .map(|note| match note {
+                    Some(note) => format!("{}\n\n---\n\n", note.body),
+                    None => {
+                        println!("WARNING: failed to find a note"); // this is very clear, I know :)
+                        format!("*not created yet*\n\n---\n\n")
+                    }
+                });
+
+            Note {
+                name: note.name.clone(),
+                meta: note.meta.clone(),
+                body: linked_notes.collect(),
+            }
+        })
+        .collect();
+
+    println!(
+        "\n\n\n{}",
+        source_notes
+            .iter()
+            .find(|note| note.name == "website")
+            .unwrap()
+            .body
+    );
 
     Ok(())
 }
@@ -79,6 +111,9 @@ fn read_note<P: AsRef<Path>>(path: P) -> Result<Note> {
             .ok_or_eyre("Encountered a file without a name?")?
             .to_str()
             .expect("The file should still have a name after type conversion")
+            .rsplit_once('.')
+            .expect("Pretty sure it's a markdown file")
+            .0
             .to_string(),
         meta: file
             .data
@@ -86,4 +121,8 @@ fn read_note<P: AsRef<Path>>(path: P) -> Result<Note> {
             .deserialize()?,
         body,
     })
+}
+
+fn extract_link(line: &str) -> &str {
+    line.split_once("](").unwrap().1.split_once(')').unwrap().0
 }
