@@ -14,7 +14,7 @@ fn main() -> Result<()> {
     let workdir = "/nix/persist/active-externalism/data";
 
     // flat because my vault is flat, at least for now
-    let notes: Vec<_> = fs::read_dir(workdir)?
+    let all_notes: Vec<_> = fs::read_dir(workdir)?
         .map(|entry| entry.unwrap().path())
         .filter(|path| !path.is_dir())
         .map(read_note)
@@ -22,20 +22,16 @@ fn main() -> Result<()> {
         .flatten()
         .collect();
 
-    let source_notes: Vec<_> = notes
+    all_notes
         .iter()
         .filter(|note| note.meta.r#type == ZettelType::Source)
-        .map(|note| concat_source_note(note, &notes))
-        .collect();
+        .map(|note| concat_source_note(note, &all_notes))
+        .for_each(save_to_file);
 
-    println!(
-        "\n\n\n{}",
-        source_notes
-            .iter()
-            .find(|note| note.name == "website")
-            .unwrap()
-            .body
-    );
+    all_notes
+        .into_iter()
+        .filter(|note| note.meta.r#type == ZettelType::Main)
+        .for_each(save_to_file);
 
     Ok(())
 }
@@ -102,6 +98,14 @@ fn concat_source_note(note: &Note, all_notes: &Vec<Note>) -> Note {
         meta: note.meta.clone(),
         body: linked_notes.collect(),
     }
+}
+
+fn save_to_file(note: Note) {
+    let _ = fs::create_dir("./dist");
+
+    // TODO add frontmatter
+
+    fs::write(format!("./dist/{}.md", note.name), note.body).unwrap();
 }
 
 fn extract_link(line: &str) -> &str {
