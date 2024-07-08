@@ -25,28 +25,7 @@ fn main() -> Result<()> {
     let source_notes: Vec<_> = notes
         .iter()
         .filter(|note| note.meta.r#type == ZettelType::Source)
-        .map(|note| {
-            let linked_notes = note
-                .body
-                .lines()
-                .filter(|line| line.starts_with("- "))
-                .map(extract_link)
-                .map(|link| notes.iter().find(|note| note.name == link))
-                .map(|note| match note {
-                    Some(note) => format!("{}\n\n{}\n\n---\n\n", format_metadata(&note), note.body),
-                    None => {
-                        println!("WARNING: failed to find a note"); // this is very clear, I know :)
-
-                        "*not created yet*\n\n---\n\n".to_string()
-                    }
-                });
-
-            Note {
-                name: note.name.clone(),
-                meta: note.meta.clone(),
-                body: linked_notes.collect(),
-            }
-        })
+        .map(|note| concat_source_note(note, &notes))
         .collect();
 
     println!(
@@ -100,6 +79,29 @@ fn read_note<P: AsRef<Path>>(path: P) -> Result<Note> {
             .deserialize()?,
         body,
     })
+}
+
+fn concat_source_note(note: &Note, all_notes: &Vec<Note>) -> Note {
+    let linked_notes = note
+        .body
+        .lines()
+        .filter(|line| line.starts_with("- "))
+        .map(extract_link)
+        .map(|link| all_notes.iter().find(|note| note.name == link))
+        .map(|note| match note {
+            Some(note) => format!("{}\n\n{}\n\n---\n\n", format_metadata(note), note.body),
+            None => {
+                println!("WARNING: failed to find a note"); // this is very clear, I know :)
+
+                "*not created yet*\n\n---\n\n".to_string()
+            }
+        });
+
+    Note {
+        name: note.name.clone(),
+        meta: note.meta.clone(),
+        body: linked_notes.collect(),
+    }
 }
 
 fn extract_link(line: &str) -> &str {
