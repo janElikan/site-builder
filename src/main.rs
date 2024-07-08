@@ -5,30 +5,8 @@ use std::{fs, path::PathBuf};
 use color_eyre::eyre::{OptionExt, Result};
 use gray_matter::{engine::YAML, Matter};
 use regex::{Captures, Regex};
-use serde::{Deserialize, Serialize};
 
-#[derive(Debug)]
-struct Note {
-    name: String,
-    meta: NoteMetadata,
-    body: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct NoteMetadata {
-    source: Option<String>,
-    scope: String,
-    r#type: ZettelType,
-    created: String,  // for now
-    modified: String, // for now
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
-#[serde(rename_all = "kebab-case")]
-enum ZettelType {
-    Main,
-    Source,
-}
+use site_builder::{format_metadata, Note, NoteMetadata, ZettelType};
 
 fn main() -> Result<()> {
     color_eyre::install()?;
@@ -55,10 +33,11 @@ fn main() -> Result<()> {
                 .map(extract_link)
                 .map(|link| notes.iter().find(|note| note.name == link))
                 .map(|note| match note {
-                    Some(note) => format!("{}\n\n---\n\n", note.body),
+                    Some(note) => format!("{}\n\n{}\n\n---\n\n", format_metadata(&note), note.body),
                     None => {
                         println!("WARNING: failed to find a note"); // this is very clear, I know :)
-                        format!("*not created yet*\n\n---\n\n")
+
+                        "*not created yet*\n\n---\n\n".to_string()
                     }
                 });
 
