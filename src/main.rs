@@ -8,6 +8,7 @@ fn main() -> Result<()> {
     color_eyre::install()?;
 
     let workdir = "/nix/persist/active-externalism/data";
+    let included_scopes = ["public"];
 
     // flat because my vault is flat, at least for now
     let all_notes: Vec<_> = fs::read_dir(workdir)?
@@ -16,18 +17,25 @@ fn main() -> Result<()> {
         .map(site_builder::read_note)
         .filter(|result| result.is_ok()) // not all files are notes
         .flatten()
+        .filter(|note| included_scopes.contains(&note.meta.scope.as_str()))
         .collect();
 
-    all_notes
+    let source_notes = all_notes
         .iter()
         .filter(|note| note.meta.r#type == ZettelType::Source)
         .map(|note| concat_source_note(note, &all_notes))
-        .for_each(save_to_file);
+        .map(save_to_file)
+        .count();
 
-    all_notes
+    let main_notes = all_notes
         .into_iter()
         .filter(|note| note.meta.r#type == ZettelType::Main)
-        .for_each(save_to_file);
+        .map(save_to_file)
+        .count();
+
+    println!("Processed {} notes:", source_notes + main_notes);
+    println!("- {} source", source_notes);
+    println!("- {} main", main_notes);
 
     Ok(())
 }
