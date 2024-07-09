@@ -1,3 +1,9 @@
+use std::fs;
+use std::path::Path;
+
+use color_eyre::eyre::{OptionExt, Result};
+use gray_matter::{engine::YAML, Matter};
+use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
@@ -21,6 +27,47 @@ pub struct NoteMetadata {
 pub enum ZettelType {
     Main,
     Source,
+}
+
+pub fn read_note<P: AsRef<Path>>(path: P) -> Result<Note> {
+    let matter = Matter::<YAML>::new();
+
+    let file = fs::read_to_string(&path)?;
+    let file = matter.parse(&file);
+
+    let body = file.content;
+    let regex = Regex::new(r"\[\[(.+?)(\|.+?)?\]\]").unwrap();
+
+    let body = regex
+        .replace_all(&body, |caps: &Captures| {
+            let link = caps.get(1).unwrap().as_str();
+            let label = match caps.get(2) {
+                Some(label) => &label.as_str()[1..],
+                None => link,
+            };
+
+            format!("[{}]({})", label, link)
+        })
+        .to_string();
+
+    Ok(Note {
+        name: path
+            .as_ref()
+            .iter()
+            .last()
+            .ok_or_eyre("Encountered a file without a name?")?
+            .to_str()
+            .expect("The file should still have a name after type conversion")
+            .rsplit_once('.')
+            .expect("Pretty sure it's a markdown file")
+            .0
+            .to_string(),
+        meta: file
+            .data
+            .ok_or_eyre("The file has no frontmatter")?
+            .deserialize()?,
+        body,
+    })
 }
 
 /// Outputs a jsx-formatted note
