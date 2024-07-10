@@ -90,7 +90,6 @@ fn concat_source_note(source_note: &Note, all_notes: &[Note]) -> Note {
         .map(|(link, note)| match note {
             Some(note) => {
                 println!("  - {}", &note.name.green());
-                // println!("├└─ `{}`", &note.name);
 
                 format!(
                     "{}\n\n{}\n\n---\n\n",
@@ -117,8 +116,6 @@ fn extract_link(line: &str) -> &str {
 }
 
 fn save_to_file(note: Note, workdir: &str) {
-    let _ = fs::create_dir("./dist");
-
     // TODO add frontmatter
 
     fs::write(format!("{}/{}.md", workdir, note.name), note.body).unwrap();
