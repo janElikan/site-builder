@@ -1,6 +1,6 @@
 use std::fs;
 
-use color_eyre::eyre::Result;
+use color_eyre::{eyre::Result, owo_colors::OwoColorize};
 
 use site_builder::{Note, ZettelType};
 
@@ -20,49 +20,76 @@ fn main() -> Result<()> {
         .filter(|note| included_scopes.contains(&note.meta.scope.as_str()))
         .collect();
 
+    println!("{}", "## Source".bold().yellow());
+
     let source_notes = all_notes
         .iter()
         .filter(|note| note.meta.r#type == ZettelType::Source)
-        .map(|note| concat_source_note(note, &all_notes))
+        .map(|note| {
+            let note = concat_source_note(note, &all_notes);
+            println!();
+
+            note
+        })
         .map(save_to_file)
         .count();
+
+    println!("{}", "## Main".bold().yellow());
 
     let main_notes = all_notes
         .into_iter()
         .filter(|note| note.meta.r#type == ZettelType::Main)
+        .map(|note| {
+            println!("- {}", &note.name);
+
+            note
+        })
         .map(save_to_file)
         .count();
 
-    println!("Processed {} notes:", source_notes + main_notes);
-    println!("- {} source", source_notes);
-    println!("- {} main", main_notes);
+    println!(
+        "\nProcessed {} notes, {} source and {} main",
+        source_notes + main_notes,
+        source_notes,
+        main_notes,
+    );
 
     Ok(())
 }
 
-fn concat_source_note(note: &Note, all_notes: &[Note]) -> Note {
-    let linked_notes = note
+fn concat_source_note(source_note: &Note, all_notes: &[Note]) -> Note {
+    println!("- {}", &source_note.name.bold());
+
+    let linked_notes = source_note
         .body
         .lines()
         .filter(|line| line.starts_with("- "))
         .map(extract_link)
-        .map(|link| all_notes.iter().find(|note| note.name == link))
-        .map(|note| match note {
-            Some(note) => format!(
-                "{}\n\n{}\n\n---\n\n",
-                site_builder::format_metadata(note),
-                note.body
-            ),
+        .map(|link| {
+            let note = all_notes.iter().find(|note| note.name == link);
+            (link, note)
+        })
+        .map(|(link, note)| match note {
+            Some(note) => {
+                println!("  - {}", &note.name.green());
+                // println!("├└─ `{}`", &note.name);
+
+                format!(
+                    "{}\n\n{}\n\n---\n\n",
+                    site_builder::format_metadata(note),
+                    note.body
+                )
+            }
             None => {
-                println!("WARNING: failed to find a note"); // this is very clear, I know :)
+                println!("  - {} not found", link.red());
 
                 "*not created yet*\n\n---\n\n".to_string()
             }
         });
 
     Note {
-        name: note.name.clone(),
-        meta: note.meta.clone(),
+        name: source_note.name.clone(),
+        meta: source_note.meta.clone(),
         body: linked_notes.collect(),
     }
 }
