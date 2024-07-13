@@ -78,7 +78,7 @@ fn main() -> Result<()> {
 fn concat_source_note(source_note: &Note, all_notes: &[Note]) -> Note {
     println!("- {}", &source_note.name.bold());
 
-    let linked_notes = source_note
+    let linked_notes: Vec<_> = source_note
         .body
         .lines()
         .filter(|line| line.starts_with("- "))
@@ -91,23 +91,20 @@ fn concat_source_note(source_note: &Note, all_notes: &[Note]) -> Note {
             Some(note) => {
                 println!("  - {}", &note.name.green());
 
-                format!(
-                    "{}\n\n{}\n\n---\n\n",
-                    site_builder::format_metadata(note),
-                    note.body
-                )
+                format!("{}\n\n{}", site_builder::format_metadata(note), note.body)
             }
             None => {
                 println!("  - {} not found", link.red());
 
-                "*not created yet*\n\n---\n\n".to_string()
+                "*not created yet*".to_string()
             }
-        });
+        })
+        .collect();
 
     Note {
         name: source_note.name.clone(),
         meta: source_note.meta.clone(),
-        body: linked_notes.collect(),
+        body: linked_notes.join("\n\n---\n\n"),
     }
 }
 
