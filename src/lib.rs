@@ -36,19 +36,19 @@ pub fn read_note<P: AsRef<Path>>(path: P) -> Result<Note> {
     let file = matter.parse(&file);
 
     let body = file.content;
-    let regex = Regex::new(r"\[\[(.+?)(\|.+?)?\]\]").unwrap();
 
-    let body = regex
-        .replace_all(&body, |caps: &Captures| {
-            let link = caps.get(1).unwrap().as_str();
-            let label = match caps.get(2) {
-                Some(label) => &label.as_str()[1..],
-                None => link,
-            };
-
-            format!("[{}]({})", label, link)
+    let body = body
+        .split('`')
+        .enumerate()
+        .map(|(idx, block)| {
+            if idx % 2 == 0 {
+                format_links(block)
+            } else {
+                String::from(block)
+            }
         })
-        .to_string();
+        .collect::<Vec<_>>()
+        .join("`");
 
     Ok(Note {
         name: path
@@ -68,6 +68,22 @@ pub fn read_note<P: AsRef<Path>>(path: P) -> Result<Note> {
             .deserialize()?,
         body,
     })
+}
+
+fn format_links(block: &str) -> String {
+    let regex = Regex::new(r"\[\[(.+?)(\|.+?)?\]\]").unwrap();
+
+    regex
+        .replace_all(block, |caps: &Captures| {
+            let link = caps.get(1).unwrap().as_str();
+            let label = match caps.get(2) {
+                Some(label) => &label.as_str()[1..],
+                None => link,
+            };
+
+            format!("[{}]({})", label, link)
+        })
+        .to_string()
 }
 
 /// Outputs a jsx-formatted note
