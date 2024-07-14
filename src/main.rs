@@ -113,9 +113,10 @@ fn extract_link(line: &str) -> &str {
 }
 
 fn save_to_file(note: Note, workdir: &str) {
-    // TODO add frontmatter
+    let layout = "../layouts/MainLayout.astro";
+    let body = site_builder::get_frontmatter(&note, layout) + &note.body;
 
-    fs::write(format!("{}/{}.md", workdir, note.name), note.body).unwrap();
+    fs::write(format!("{}/{}.mdx", workdir, note.name), body).unwrap();
 }
 
 fn read_env_var(var_name: &str) -> Result<String> {
