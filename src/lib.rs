@@ -124,7 +124,7 @@ pub fn format_metadata(note: &Note) -> String {
     };
 
     format!(
-        "<NoteMeta name=\"{}\" source=\"{}\" scope=\"{}\" type=\"{}\" created=\"{}\" modified=\"{}\" />",
+        "<NoteMeta name=\"{}\" source=\"{}\" scope=\"{}\" type=\"{}\" created=\"{}Z\" modified=\"{}Z\" />",
         note.name, note_source, meta.scope, note_type, meta.created, meta.modified,
     )
     .to_string()
@@ -145,7 +145,7 @@ pub fn get_frontmatter(note: &Note, layout: &str) -> String {
     };
 
     format!(
-        "---\nlayout: {}\ntitle: \"{}\"\nsource: \"{}\"\nscope: \"{}\"\ntype: \"{}\"\ncreated: \"{}\"\nmodified: \"{}\"\n---\n\n",
+        "---\nlayout: {}\ntitle: \"{}\"\nsource: \"{}\"\nscope: \"{}\"\ntype: \"{}\"\ncreated: \"{}Z\"\nmodified: \"{}Z\"\n---\n\n",
         layout, note.name, note_source, meta.scope, note_type, meta.created, meta.modified,
     )
     .to_string()
