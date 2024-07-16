@@ -84,6 +84,7 @@ fn concat_source_note(source_note: &Note, all_notes: &[Note]) -> Note {
         .filter(|line| line.starts_with("- "))
         .map(extract_link)
         .map(|link| {
+            let link = &link[1..]; // ignore the slash
             let note = all_notes.iter().find(|note| note.name == link);
             (link, note)
         })

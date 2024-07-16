@@ -81,6 +81,15 @@ fn format_links(block: &str) -> String {
                 None => link,
             };
 
+            let link = if link.starts_with("https://")
+                || link.starts_with("http://")
+                || link.starts_with("mailto://")
+            {
+                link.to_string()
+            } else {
+                format!("/{link}")
+            };
+
             format!("[{}]({})", label, link)
         })
         .to_string()
