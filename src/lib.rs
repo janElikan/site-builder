@@ -124,8 +124,29 @@ pub fn format_metadata(note: &Note) -> String {
     };
 
     format!(
-        "<NoteMeta name=\"{}\" source=\"{}\" scope=\"{}\" type=\"{}\" created=\"{}\" modified=\"{}\" />",
+        "<NoteMeta name=\"{}\" source=\"{}\" scope=\"{}\" type=\"{}\" created=\"{}Z\" modified=\"{}Z\" />",
         note.name, note_source, meta.scope, note_type, meta.created, meta.modified,
+    )
+    .to_string()
+}
+
+/// Formats metadata for the SSG (astro, in my case)
+pub fn get_frontmatter(note: &Note, layout: &str) -> String {
+    let meta = &note.meta;
+
+    let note_source = match &meta.source {
+        Some(url) => url,
+        None => "",
+    };
+
+    let note_type = match meta.r#type {
+        ZettelType::Main => "main",
+        ZettelType::Source => "source",
+    };
+
+    format!(
+        "---\nlayout: {}\ntitle: \"{}\"\nsource: \"{}\"\nscope: \"{}\"\ntype: \"{}\"\ncreated: \"{}Z\"\nmodified: \"{}Z\"\n---\n\n",
+        layout, note.name, note_source, meta.scope, note_type, meta.created, meta.modified,
     )
     .to_string()
 }

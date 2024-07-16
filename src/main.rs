@@ -78,7 +78,7 @@ fn main() -> Result<()> {
 fn concat_source_note(source_note: &Note, all_notes: &[Note]) -> Note {
     println!("- {}", &source_note.name.bold());
 
-    let linked_notes: Vec<_> = source_note
+    let linked_notes = source_note
         .body
         .lines()
         .filter(|line| line.starts_with("- "))
@@ -99,12 +99,18 @@ fn concat_source_note(source_note: &Note, all_notes: &[Note]) -> Note {
                 "*not created yet*".to_string()
             }
         })
-        .collect();
+        .collect::<Vec<_>>()
+        .join("\n\n---\n\n");
+
+    let body = format!(
+        "import NoteMeta from \"../components/NoteMeta.astro\"\n\n{}",
+        linked_notes
+    );
 
     Note {
         name: source_note.name.clone(),
         meta: source_note.meta.clone(),
-        body: linked_notes.join("\n\n---\n\n"),
+        body,
     }
 }
 
@@ -113,9 +119,10 @@ fn extract_link(line: &str) -> &str {
 }
 
 fn save_to_file(note: Note, workdir: &str) {
-    // TODO add frontmatter
+    let layout = "../layouts/MainLayout.astro";
+    let body = site_builder::get_frontmatter(&note, layout) + &note.body;
 
-    fs::write(format!("{}/{}.md", workdir, note.name), note.body).unwrap();
+    fs::write(format!("{}/{}.mdx", workdir, note.name), body).unwrap();
 }
 
 fn read_env_var(var_name: &str) -> Result<String> {
