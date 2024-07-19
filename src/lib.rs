@@ -83,7 +83,7 @@ fn format_links(block: &str) -> String {
 
             let link = if link.starts_with("https://")
                 || link.starts_with("http://")
-                || link.starts_with("mailto://")
+                || link.starts_with("mailto:")
             {
                 link.to_string()
             } else {
