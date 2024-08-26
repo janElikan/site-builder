@@ -3,30 +3,16 @@ use std::io::BufReader;
 use std::path::Path;
 
 use color_eyre::eyre::{OptionExt, Result};
+use colors::replace_color;
 use gray_matter::{engine::YAML, Matter};
 use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
 use xml::reader::XmlEvent;
 
+mod colors;
+
 const WIKILINK_REGEX: &str = r"\[\[(.+?)(\|.+?)?\]\]";
 const WIKILINK_EMBED_REGEX: &str = r"\!\[\[(.+?)(\|.+?)?\]\]";
-
-const COLOR_TEXT: &str = "var(--color-text)";
-const COLOR_GRAY: &str = "var(--color-subtext)";
-const COLOR_BACKGROUND: &str = "var(--color-base)";
-const COLOR_BROWN: &str = "var(--color-maroon)";
-
-const COLOR_CYAN: &str = "var(--color-sapphire)";
-const COLOR_BLUE: &str = "var(--color-blue)";
-const COLOR_PURPLE: &str = "var(--color-lavander)";
-const COLOR_MAGENTA: &str = "var(--color-mavue)";
-const COLOR_PINK: &str = "var(--color-pink)";
-
-const COLOR_GREEN: &str = "var(--color-green)";
-const COLOR_TEAL: &str = "var(--color-teal)";
-const COLOR_DARK_ORANGE: &str = "var(--color-yellow)";
-const COLOR_BRIGHT_ORANGE: &str = "var(--color-peach)";
-const COLOR_RED: &str = "var(--color-red)";
 
 #[derive(Debug)]
 pub struct Note {
@@ -139,36 +125,9 @@ fn process_svg(path: &Path) -> String {
                 .map(|attribute| (attribute.name.to_string(), attribute.value))
                 .filter(|(key, _)| key != "filter")
                 .map(|(key, val)| {
-                    let len = val.len();
-                    let is_color = val.starts_with('#') && len == 7;
+                    let is_color = val.starts_with('#') && val.len() == 7;
 
-                    let val = if is_color {
-                        match val.as_str() {
-                            "#ffffff" => COLOR_BACKGROUND,
-                            "#868e96" => COLOR_GRAY,
-                            "#1e1e1e" => COLOR_TEXT,
-                            "#846358" => COLOR_BROWN,
-                            "#0c8599" => COLOR_CYAN,
-                            "#1971c2" => COLOR_BLUE,
-                            "#6741d9" => COLOR_PURPLE,
-                            "#9c36b5" => COLOR_MAGENTA,
-                            "#c2255c" => COLOR_PINK,
-                            "#2f9e44" => COLOR_GREEN,
-                            "#099268" => COLOR_TEAL,
-                            "#f08c00" => COLOR_DARK_ORANGE,
-                            "#e8590c" => COLOR_BRIGHT_ORANGE,
-                            "#e03131" => COLOR_RED,
-                            c => {
-                                println!("unknown color: {}", c);
-                                c
-                            }
-                        }
-                        .to_string()
-                    } else {
-                        val
-                    };
-
-                    (key, val)
+                    (key, if is_color { replace_color(&val) } else { val })
                 })
                 .map(|(key, val)| {
                     if key == "font-family" {
