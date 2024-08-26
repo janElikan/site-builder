@@ -1,16 +1,17 @@
-use std::{env, fs};
+use std::{env, fs, path::PathBuf};
 
 use color_eyre::{
     eyre::{Context, Result},
     owo_colors::OwoColorize,
 };
 
-use site_builder::{Note, ZettelType};
+use site_builder::{embed_svgs, format_links, Note, ZettelType};
 
 fn main() -> Result<()> {
     color_eyre::install()?;
 
     let vault_path = read_env_var("SITE_VAULT_PATH")?;
+    let asset_path: PathBuf = format!("{}/assets", &vault_path).into();
     let output_path = read_env_var("SITE_OUTPUT_PATH")?;
     let included_scopes = read_env_var("SITE_INCLUDE_SCOPES")?;
     let included_scopes: Vec<_> = included_scopes
@@ -29,6 +30,25 @@ fn main() -> Result<()> {
         .filter(|result| result.is_ok()) // not all files are notes
         .flatten()
         .filter(|note| included_scopes.contains(&note.meta.scope.as_str()))
+        .map(|note| {
+            let body = note
+                .body
+                .split('`')
+                .enumerate()
+                .map(|(idx, block)| {
+                    if idx % 2 == 0 {
+                        let block = embed_svgs(block, &asset_path);
+
+                        format_links(&block)
+                    } else {
+                        String::from(block)
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("`");
+
+            Note { body, ..note }
+        })
         .collect();
 
     println!("{}", "## Source".bold().yellow());
