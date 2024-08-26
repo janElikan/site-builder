@@ -11,7 +11,6 @@ use xml::reader::XmlEvent;
 const WIKILINK_REGEX: &str = r"\[\[(.+?)(\|.+?)?\]\]";
 const WIKILINK_EMBED_REGEX: &str = r"\!\[\[(.+?)(\|.+?)?\]\]";
 
-const COLOR_TRANSPARENT: &str = "transparent";
 const COLOR_TEXT: &str = "var(--color-text)";
 const COLOR_GRAY: &str = "var(--color-subtext)";
 const COLOR_BACKGROUND: &str = "var(--color-base)";
@@ -137,8 +136,8 @@ fn process_svg(path: &Path) -> String {
 
             let attributes: Vec<_> = attributes
                 .into_iter()
-                .map(|attribute| (attribute.name, attribute.value))
-                .filter(|(key, _)| &key.to_string() != "filter")
+                .map(|attribute| (attribute.name.to_string(), attribute.value))
+                .filter(|(key, _)| key != "filter")
                 .map(|(key, val)| {
                     let len = val.len();
                     let is_color = val.starts_with('#') && len == 7;
@@ -170,6 +169,13 @@ fn process_svg(path: &Path) -> String {
                     };
 
                     (key, val)
+                })
+                .map(|(key, val)| {
+                    if key == "font-family" {
+                        (key, "JetBrains Mono".to_string())
+                    } else {
+                        (key, val)
+                    }
                 })
                 .map(|(key, val)| format!("{}=\"{}\"", key, val))
                 .collect();
