@@ -1,10 +1,18 @@
 use std::fs;
+use std::io::BufReader;
 use std::path::Path;
 
 use color_eyre::eyre::{OptionExt, Result};
+use colors::replace_color;
 use gray_matter::{engine::YAML, Matter};
 use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
+use xml::reader::XmlEvent;
+
+mod colors;
+
+const WIKILINK_REGEX: &str = r"\[\[(.+?)(\|.+?)?\]\]";
+const WIKILINK_EMBED_REGEX: &str = r"\!\[\[(.+?)(\|.+?)?\]\]";
 
 #[derive(Debug)]
 pub struct Note {
@@ -35,21 +43,6 @@ pub fn read_note<P: AsRef<Path>>(path: P) -> Result<Note> {
     let file = fs::read_to_string(&path)?;
     let file = matter.parse(&file);
 
-    let body = file.content;
-
-    let body = body
-        .split('`')
-        .enumerate()
-        .map(|(idx, block)| {
-            if idx % 2 == 0 {
-                format_links(block)
-            } else {
-                String::from(block)
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("`");
-
     Ok(Note {
         name: path
             .as_ref()
@@ -66,14 +59,13 @@ pub fn read_note<P: AsRef<Path>>(path: P) -> Result<Note> {
             .data
             .ok_or_eyre("The file has no frontmatter")?
             .deserialize()?,
-        body,
+        body: file.content,
     })
 }
 
-fn format_links(block: &str) -> String {
-    let regex = Regex::new(r"\[\[(.+?)(\|.+?)?\]\]").unwrap();
-
-    regex
+pub fn format_links(block: &str) -> String {
+    Regex::new(WIKILINK_REGEX)
+        .unwrap()
         .replace_all(block, |caps: &Captures| {
             let link = caps.get(1).unwrap().as_str();
             let label = match caps.get(2) {
@@ -93,6 +85,91 @@ fn format_links(block: &str) -> String {
             format!("[{}]({})", label, link)
         })
         .to_string()
+}
+
+pub fn embed_svgs(block: &str, asset_directory: &Path) -> String {
+    Regex::new(WIKILINK_EMBED_REGEX)
+        .unwrap()
+        .replace_all(block, |caps: &Captures| {
+            let filename = format!("{}.svg", caps.get(1).unwrap().as_str());
+            let mut path = asset_directory.to_path_buf();
+            path.push(filename);
+            let _alt = caps.get(2).map(|label| &label.as_str()[1..]);
+
+            println!("embedding `{}`", &path.to_str().unwrap());
+
+            process_svg(&path)
+        })
+        .to_string()
+}
+
+fn process_svg(path: &Path) -> String {
+    let file = fs::File::open(path).expect("can't open image");
+    let file = BufReader::new(file);
+    let parser = xml::reader::EventReader::new(file);
+
+    let mut output = String::new();
+    let mut ignore_current = false;
+    parser.into_iter().for_each(|event| match event {
+        Ok(XmlEvent::StartElement {
+            name, attributes, ..
+        }) => {
+            let name = name.to_string().replace("{http://www.w3.org/2000/svg}", "");
+
+            if name == "style" {
+                ignore_current = true;
+            }
+
+            let attributes: Vec<_> = attributes
+                .into_iter()
+                .map(|attribute| (attribute.name.to_string(), attribute.value))
+                .filter(|(key, _)| key != "filter")
+                .map(|(key, val)| {
+                    let is_color = val.starts_with('#') && val.len() == 7;
+
+                    (key, if is_color { replace_color(&val) } else { val })
+                })
+                .map(|(key, val)| {
+                    if key == "font-family" {
+                        (key, "JetBrains Mono".to_string())
+                    } else {
+                        (key, val)
+                    }
+                })
+                .map(|(key, val)| format!("{}=\"{}\"", key, val))
+                .collect();
+
+            output.push('<');
+            output.push_str(&name);
+            if !attributes.is_empty() {
+                output.push(' ');
+                output.push_str(&attributes.join(" "));
+            }
+            output.push('>');
+        }
+        Ok(XmlEvent::Characters(chars)) => {
+            if !ignore_current {
+                output.push_str(&chars)
+            }
+        }
+        Ok(XmlEvent::EndElement { name }) => {
+            let name = name.to_string().replace("{http://www.w3.org/2000/svg}", "");
+
+            if name == "style" {
+                ignore_current = false;
+            }
+
+            output.push_str("</");
+            output.push_str(&name);
+            output.push('>');
+        }
+        Err(why) => {
+            dbg!(why);
+        }
+        _ => (),
+    });
+
+    output
 }
 
 /// Outputs a jsx-formatted note
